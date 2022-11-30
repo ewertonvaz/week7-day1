@@ -1,88 +1,151 @@
 import express from "express"
-import db from '../db.json' assert {type: 'json'} ;
-import { v4 } from "uuid";
+// import db from '../db.json' assert {type: 'json'} ;
+// import { v4 } from "uuid";
+import ProcessoModel from "../model/processo.model.js";
 
 const processoRoute = express.Router();
 
-processoRoute.get('/all', (req, res) => {
+processoRoute.get('/all', async (req, res) => {
     // console.log(req.rawHeaders);
-    return res.status(200).json(db);
+    try {
+        const processos = await ProcessoModel.find();
+        return res.status(200).json(processos)  
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({ msg: "Erro ao recuperar os processos!"})
+    }
 })
 
-processoRoute.get('/process/:id', (req, res) => {
+processoRoute.get('/getone/:id', async (req, res) => {
     const { id } = req.params;
-    const item = db.find((process) => process.id === id);
-
-    if ( !item) {
-        return res.status(404).json(`Not found id: ${id}`);
+    if ( !id) {
+        return res.status(400).json(`Bad request!`);
     }
-    return res.status(200).json(item);
+    try {
+        const processo = await ProcessoModel.findById(id);
+        if (processo) {
+            return res.status(200).json(processo);
+        } else {
+            return res.status(404).json("Not found !");
+        }
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({ msg: "Erro ao recuperar o processo!"})
+    }
 });
 
-processoRoute.get('/status/open', (req, res) => {
-    const result = db.filter( process => process.status === "Em andamento");
-    return res.status(200).json(result);
+processoRoute.get('/status/open', async (req, res) => {
+    try {
+        const filter = { status : "em andamento"};
+        //const projection = { documentName: 1};
+        //const sort = {};
+        // const processos = await ProcessoModel.find(filter, {projection}).sort(sort);
+        const processos = await ProcessoModel.find(filter);
+        return res.status(200).json(processos);        
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json("Erro ao realizar a consulta!");
+    }
 });
 
-processoRoute.get('/status/close', (req, res) => {
-    const result = db.filter( process => process.status === "Finalizado");
-    return res.status(200).json(result);
+processoRoute.get('/status/close', async (req, res) => {
+    try {
+        const filter = { status : "finalizado"};
+        const processos = await ProcessoModel.find(filter);
+        return res.status(200).json(processos);        
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json("Erro ao realizar a consulta!");
+    }
 });
 
-processoRoute.get('/setor/:nomeSetor', (req, res) => {
+processoRoute.get('/setor/:nomeSetor', async (req, res) => {
     const { nomeSetor } = req.params;
     if ( !nomeSetor) {
         return res.status(400).json(`Bad request!`);
     }
-    const result = db.filter( process => process.setor.toLowerCase()  === nomeSetor.toLowerCase());
-    return res.status(200).json(result);
+    try {
+        const filter = { setor : nomeSetor };
+        const processos = await ProcessoModel.find(filter);
+        return res.status(200).json(processos);        
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json("Erro ao realizar a consulta!");
+    }
 });
 
-processoRoute.get('/random', (req, res) => {
-    const index = Math.floor(Math.random() * db.length);
-    return res.status(200).json(db[index]);
+processoRoute.get('/random', async (req, res) => {
+    try {
+        const processos = await ProcessoModel.find({});
+        const index = Math.floor(Math.random() * processos.length);
+        return res.status(200).json(processos[index]);
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({ msg: "Erro ao recuperar os processos!"})
+    }
 });
 
-processoRoute.post('/create', (req, res) => {
-    const id = v4();
-    db.push({id: id, ...req.body});
-    return res.status(201).json(db)
+processoRoute.post('/create', async (req, res) => {
+    // const id = v4();
+    // db.push({id: id, ...req.body});
+    try {
+        const process = { ...req.body, dateInit: new Date(req.body.dateInit), dateEnd: new Date(req.body.dateEnd)};
+        // console.log(process);
+        const newProcess = await ProcessoModel.create(process);
+        return res.status(201).json(newProcess)  
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json({ msg: "Erro ao criar processo!"})
+    }
 });
 
-processoRoute.put('/edit/:id', (req, res) => {
+processoRoute.put('/edit/:id', async (req, res) => {
     const {id} = req.params;
-    const data = req.body;
-    const item = db.find((process) => process.id === id);
-    const index = db.indexOf(item);
-    const process = {...item, ...data};
-    
-    db.splice(index, 1, process);
-
-    return res.status(200).json(db);
+    try {
+        const updatedProcess = await ProcessoModel.findByIdAndUpdate(
+            id,
+            { ...req.body, dateInit: new Date(req.body.dateInit), dateEnd: new Date(req.body.dateEnd) },
+            { new: true, runValidators: true }
+        );
+        return res.status(200).json(updatedProcess);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json("Erro ao atualizar processo!");
+    } 
 })
 
-processoRoute.put('/addComment/:id', (req, res) => {
+processoRoute.put('/addComment/:id', async (req, res) => {
     const { id } = req.params;
-    const item = db.find((process) => process.id === id);
-
-    if ( !item) {
-        return res.status(404).json(`Not found id: ${id}`);
-    }
-
     const { comment } = req.body;
     if ( !comment) {
         return res.status(400).json(`Bad request!`);
     }
-    item.comments.push(comment);
-    return res.status(200).json(db);
+
+    try {
+        const updatedProcess = await ProcessoModel.findByIdAndUpdate(
+            id,
+            { $push: {comments: comment} },
+            { new: true, runValidators: true }
+        );
+        return res.status(200).json(updatedProcess);   
+    } catch (e) {
+        console.log(e);
+        return res.status(500).json("Erro ao incluir comentario!")
+    }
 });
 
-processoRoute.delete('/delete/:id', (req, res) => {
+processoRoute.delete('/delete/:id', async (req, res) => {
     const { id } = req.params;
-    const item = db.find((process) => process.id === id);
-    const index = db.indexOf(item);
-    db.splice(index, 1);
-    return res.status(200).json(db);
+    try {
+        const deletedProcess = await ProcessoModel.findByIdAndDelete(id);
+        if (!deletedProcess) {
+            return res.status(400).json({ msg: "Usuário não encontrado!" });
+        }
+        return res.status(200).json(deletedProcess);
+    } catch(e) {
+        console.log(e);
+        return res.status(500).json("Erro ao deletar processo!");
+    }
 });
 
 export default processoRoute;
