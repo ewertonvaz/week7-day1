@@ -7,8 +7,7 @@ const userSchema = new Schema(
       required: true,
       trim: true,
       minLength: 2,
-      maxLength: 20,
-      lowercase: true,
+      maxLength: 20
     },
     age: {
       type: Number,
@@ -24,14 +23,15 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["professora", "aluno", "ta"],
-      default: "aluno",
+      enum: ["ADMIN", "USER"],
+      default: "USER",
     },
     active: {
       type: Boolean,
       default: true,
     },
     tasks: [{ type: String }],
+    passwordHash: { type: String, required: true },
     birth: { type: Date },
     address: {
       city: { type: String },
