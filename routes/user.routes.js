@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import generateToken from "../config/jwt.config.js";
 import isAuthMiddleware from "../middleware/isAuth.middleware.js";
 import attachCurrentUser from "../middleware/attachCurrentUser.middleware.js";
+import isAdmin from "../middleware/isAdmin.middleware.js";
 
 const userRoute = express.Router();
 
@@ -84,6 +85,18 @@ userRoute.post("/login", async (req, res) => {
     }
 
   })
+
+  userRoute.get("/all-users", isAuthMiddleware, isAdmin, attachCurrentUser, async (req, res) => {
+    try {
+      
+      const users = await UserModel.find({}, { passwordHash: 0 });
+  
+      return res.status(200).json(users);
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json(error.errors);
+    }
+  });
    
 //CREATE - MONGODB
 userRoute.post("/create-user", async (req, res) => {
